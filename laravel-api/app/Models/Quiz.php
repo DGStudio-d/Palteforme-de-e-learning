@@ -27,8 +27,28 @@ class Quiz extends Model
         return $this->belongsTo(Course::class);
     }
 
+    public function questions(): HasMany
+    {
+        return $this->hasMany(Question::class);
+    }
+
     public function results(): HasMany
     {
         return $this->hasMany(Result::class);
+    }
+
+    public function addQuestion(array $questionData): Question
+    {
+        return $this->questions()->create($questionData);
+    }
+
+    public function modifyQuestion(Question $question, array $data): bool
+    {
+        return $question->update($data);
+    }
+
+    public function deleteQuestion(Question $question): bool
+    {
+        return $question->delete();
     }
 }

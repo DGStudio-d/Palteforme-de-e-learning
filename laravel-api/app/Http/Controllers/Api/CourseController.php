@@ -11,13 +11,38 @@ class CourseController extends Controller
 {
     public function index()
     {
-        $courses = Course::with('teacher')->get();
+        // Only teachers can see their created courses
+        $courses = Course::where('teacher_id', Auth::id())
+            ->with('teacher')
+            ->get();
+        return response()->json($courses);
+    }
+
+    public function publicCourses()
+    {
+        $courses = Course::with('teacher')
+            ->withCount('students')
+            ->get();
+        return response()->json($courses);
+    }
+
+    public function enrolledCourses()
+    {
+        $courses = Auth::user()
+            ->enrolledCourses()
+            ->with('teacher')
+            ->get();
         return response()->json($courses);
     }
 
     public function show(Course $course)
     {
-        return response()->json($course->load(['teacher', 'quizzes']));
+        $course->load(['teacher', 'quizzes']);
+        
+        // Add enrollment status for the current user
+        $course->is_enrolled = $course->students()->where('user_id', Auth::id())->exists();
+        
+        return response()->json($course);
     }
 
     public function store(Request $request)
@@ -37,6 +62,11 @@ class CourseController extends Controller
 
     public function update(Request $request, Course $course)
     {
+        // Check if user is the teacher of the course
+        if ($course->teacher_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -49,6 +79,11 @@ class CourseController extends Controller
 
     public function destroy(Course $course)
     {
+        // Check if user is the teacher of the course
+        if ($course->teacher_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $course->delete();
         return response()->json(null, 204);
     }
@@ -56,6 +91,12 @@ class CourseController extends Controller
     public function enroll(Course $course)
     {
         $user = Auth::user();
+        
+        // Check if already enrolled
+        if ($course->students()->where('user_id', $user->id)->exists()) {
+            return response()->json(['message' => 'Already enrolled'], 400);
+        }
+
         $course->students()->attach($user->id);
         return response()->json(['message' => 'Enrolled successfully']);
     }
@@ -63,7 +104,32 @@ class CourseController extends Controller
     public function unenroll(Course $course)
     {
         $user = Auth::user();
+        
+        // Check if enrolled
+        if (!$course->students()->where('user_id', $user->id)->exists()) {
+            return response()->json(['message' => 'Not enrolled'], 400);
+        }
+
         $course->students()->detach($user->id);
         return response()->json(['message' => 'Unenrolled successfully']);
+    }
+
+    public function students(Course $course)
+    {
+        // Check if user is the teacher of the course
+        if ($course->teacher_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $students = $course->students()
+            ->withPivot('created_at')
+            ->with(['results' => function ($query) use ($course) {
+                $query->whereHas('quiz', function ($q) use ($course) {
+                    $q->where('course_id', $course->id);
+                });
+            }])
+            ->get();
+
+        return response()->json($students);
     }
 }
