@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
@@ -65,18 +67,18 @@ class User extends Authenticatable
     }
 
     // Relationships
-    public function teacherCourses()
+    public function courses(): BelongsToMany
+    {
+        return $this->belongsToMany(Course::class, 'course_user')
+                    ->withTimestamps();
+    }
+
+    public function teachingCourses(): HasMany
     {
         return $this->hasMany(Course::class, 'teacher_id');
     }
 
-    public function enrolledCourses()
-    {
-        return $this->belongsToMany(Course::class, 'course_user')
-            ->withTimestamps();
-    }
-
-    public function results()
+    public function results(): HasMany
     {
         return $this->hasMany(Result::class);
     }

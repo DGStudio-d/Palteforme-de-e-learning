@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\ResultController;
+use App\Http\Controllers\Api\LessonController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -28,11 +29,20 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Teacher routes
-    Route::middleware('role:teacher')->group(function () {
+    Route::middleware(['auth:sanctum', 'role:teacher'])->group(function () {
         Route::apiResource('courses', CourseController::class);
         Route::apiResource('quizzes', QuizController::class);
+        
+        // Lesson routes
+        Route::get('/courses/{course}/lessons', [LessonController::class, 'index']);
+        Route::post('/courses/{course}/lessons', [LessonController::class, 'store']);
+        Route::get('/courses/{course}/lessons/{lesson}', [LessonController::class, 'show']);
+        Route::put('/courses/{course}/lessons/{lesson}', [LessonController::class, 'update']);
+        Route::delete('/courses/{course}/lessons/{lesson}', [LessonController::class, 'destroy']);
+        Route::post('/courses/{course}/lessons/reorder', [LessonController::class, 'reorder']);
+
         Route::get('/courses/{course}/students', [CourseController::class, 'students']);
-        Route::get('/quizzes/{quiz}/results', [QuizController::class, 'getStudentResults']);
+        Route::get('/quizzes/{quiz}/results', [QuizController::class, 'results']);
     });
 
     // Admin routes
